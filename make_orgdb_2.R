@@ -1,3 +1,9 @@
+=====================================================================================================================================
+
+############ make orgPackage from emapper annotation #######################
+#####The script was created by zhangxudong <zhangxudong@genek.tv>
+======================================================================================================================================
+
 library(tidyverse)
 library(stringr)
 library(KEGGREST)
@@ -105,45 +111,38 @@ makeOrgPackageFromEmapper <- function(f_emapper_anno,
   return(my_orgdb)
 }
 
-###################################################
 
-my_orgdb <- makeOrgPackageFromEmapper("genome_eggnog.emapper2.annotations", 
+===============================================================================================================================
+
+########################## creat my_orgdb ######################
+
+===============================================================================================================================
+
+
+my_orgdb <- makeOrgPackageFromEmapper("eggnog.emapper.annotations", 
                                       "test <test@genek.tv>", 
                                       tax_id = "0000", 
                                       genus = "G", 
                                       species = "E")
-my_orgdb <- makeOrgPackageFromEmapper("effectome_eggnog.emapper.annotations", 
-                                      "test <test@genek.tv>", 
-                                      tax_id = "0000", 
-                                      genus = "E", 
-                                      species = "F")
-my_orgdb <- makeOrgPackageFromEmapper("contraction_extension.emapper.annotations", 
-                                      "test <test@genek.tv>", 
-                                      tax_id = "0000", 
-                                      genus = "C", 
-                                      species = "E")
+dir.create("R_library")
+install.packages(my_orgdb, repos = NULL, lib = "R_library")
 
-dir.create("R_library_contraction_extension")
-install.packages(my_orgdb, repos = NULL, lib = "R_library_contraction_extension")
+library(my_orgdb, character.only = TRUE, lib.loc = "R_library")
 
 
-dir.create("R_library_genome")
-install.packages(my_orgdb, repos = NULL, lib = "R_library_genome")
 
-install.packages("org.GE.eg.db", repos = NULL, lib = "R_library_genome")
+======================================================================================================================================
 
-library(my_orgdb, character.only = TRUE, lib.loc = "R_library_genome")
+##################Functional analysis(groupGO)###########################
 
-library("org.CE.eg.db", character.only = TRUE, lib.loc = "R_library_contraction_extension")
-
-##################功能注释###########################
+=================================================================================================================
 
 # load("gene_annotation.RData")
 library(clusterProfiler)
 # groupGO(gene, OrgDb, keyType = "ENTREZID", ont = "CC", level = 2,
   readable = FALSE)
 
-list <- as.character(read.table("effectome_Biotoph_specialst_gene_id.txt", quote="\"", comment.char="")$V1)
+list <- as.character(read.table("gene_id.txt", quote="\"", comment.char="")$V1)
 
 group_go_bp <- groupGO(gene     = list,
                    OrgDb    = my_orgdb,
@@ -176,14 +175,16 @@ group_go_bp <- groupGO(gene     = list,
   
  group_go_all <- rbind(group_go_bp, group_go_cc, group_go_mf)
   
-write.csv(group_go_all,"effectome_Biotoph_specialst_group_go_all.csv")
+write.csv(group_go_all,"group_go_all.csv")
 
-
-
-
+==========================================================================================================================
 
 ####################### encrichGO ################################
-list <- as.character(read.table("Gc_contraction_id.txt", quote="\"", comment.char="")$V1)
+
+===========================================================================================================================
+
+list <- as.character(read.table("gene_id.txt", quote="\"", comment.char="")$V1)
+
 # load("gene_annotation.RData")
 library(clusterProfiler)
 
@@ -222,11 +223,20 @@ enrich_go_mf <- as.data.frame(enrich_go_mf)
 enrich_go_mf$GO_Class <- "Molecular Function"
 
 enrich_go_all <- rbind(enrich_go_bp, enrich_go_cc, enrich_go_mf)
-write.csv(enrich_go_all,"Gc_contraction_enrich_go_all.csv")
+write.csv(enrich_go_all,"enrich_go_all.csv")
 
-######################作图################################
+=====================================================================================================================
 
-p<-ggplot(go_all) + 
+###################### ggplot ################################
+
+======================================================================================================================
+
+###### group_go_all+ggplot #########
+# group_go_all <- read.csv("clipboard",sep="\t")
+library(ggplot2)
+group_go_all <- read.csv("group_go_all.csv",header=T,row.names=1)
+
+p<-ggplot(group_go_all) + 
   geom_bar(aes(x = Description, 
                      y = Count,
                      fill = GO_Class),
@@ -240,11 +250,14 @@ p<-ggplot(go_all) +
         legend.key=element_rect(fill='transparent', color='transparent'), 
         axis.text = element_text(face = "bold",colour="black",size=15),
         axis.text.x = element_text(vjust=1,hjust=1,angle=45,size=6))
-ggsave("Fo_go.pdf",width = 10, height = 7)
+ggsave("go.pdf",width = 10, height = 7)
 
+###### encrichGO +ggplot ##########
 
-qvalue<- go_all$qvalue
-p<-ggplot(go_all,aes(GeneRatio,Description)) + 
+encrich_go_all <- read.csv("encrich_go_all.csv",header=T,row.names=1)
+
+qvalue<- encrich_go_all$qvalue
+p<-ggplot(encrich_go_all,aes(GeneRatio,Description)) + 
        geom_point(aes(size = Count,color = -1*log10(qvalue))) + 
 	   scale_colour_gradient(low="green",high="red")+
   facet_wrap(~GO_Class, scales = "free_x",) + 
@@ -257,11 +270,17 @@ p<-ggplot(go_all,aes(GeneRatio,Description)) +
         legend.key=element_rect(fill='transparent', color='transparent'), 
         axis.text = element_text(face = "bold",colour="black",size=15),
         axis.text.x = element_text(vjust=1,hjust=1,angle=45,size=6))
-ggsave("Fo_go.pdf",width = 10, height = 7)
+ggsave("go.pdf",width = 10, height = 7)
 
 
-############ COG ############################################
-emapper <- read_delim("genome_eggnog.emapper2.annotations",
+=======================================================================================================================
+
+############ COG #################
+
+======================================================================================================================
+
+
+emapper <- read_delim("eggnog.emapper.annotations",
                         "\t", escape_double = FALSE, trim_ws = TRUE)
 cog_info <- read_delim("cog_funclass.tab", "\t", escape_double = FALSE, trim_ws = TRUE)
   
@@ -302,7 +321,7 @@ p <- ggplot(data = gene2cog) +
         legend.text = element_text(size = 7.5)) +
   guides(fill=guide_legend(ncol=1))
 ggsave(paste(argv$out_dir, "cog.pdf", sep = "/"), p, width = 16, height = 7)
-write.csv(gene2cog, paste(argv$out_dir, "genome_gene2cog.csv"))
+write.csv(gene2cog, paste(argv$out_dir, "gene2cog.csv"))
 
 
 library(ggplot2)
@@ -320,9 +339,62 @@ ggplot(data=cog_go_core,mapping=aes(x=Class,y=Number,fill=COG_Name))+
         legend.key=element_rect(fill='transparent', color='transparent'), 
         axis.text = element_text(family="Times New Roman",face = "bold",colour="black",size=15),
         axis.text.x = element_text(vjust=1,hjust=1,angle=0,size=11))
-ggsave("Fo_COG.pdf",width = 10, height = 7)
+ggsave("COG.pdf",width = 10, height = 7)
+
+
+=============================================================================================================
 
 ##################### KEGG ############################ 
+
+=============================================================================================================
+
+#######pathway2name, ko2pathway########
+    # 需要下载 json文件(这是是经常更新的)
+    # https://www.genome.jp/kegg-bin/get_htext?ko00001
+    # 代码来自：http://www.genek.tv/course/225/task/4861/show
+if(F){
+    library(jsonlite)
+    library(purrr)
+    library(RCurl)
+    
+    update_kegg <- function(json = "ko00001.json") {
+        pathway2name <- tibble(Pathway = character(), Name = character())
+        ko2pathway <- tibble(Ko = character(), Pathway = character())
+        
+        kegg <- fromJSON(json)
+        
+        for (a in seq_along(kegg[["children"]][["children"]])) {
+            A <- kegg[["children"]][["name"]][[a]]
+            
+            for (b in seq_along(kegg[["children"]][["children"]][[a]][["children"]])) {
+                B <- kegg[["children"]][["children"]][[a]][["name"]][[b]] 
+                
+                for (c in seq_along(kegg[["children"]][["children"]][[a]][["children"]][[b]][["children"]])) {
+                    pathway_info <- kegg[["children"]][["children"]][[a]][["children"]][[b]][["name"]][[c]]
+                    
+                    pathway_id <- str_match(pathway_info, "ko[0-9]{5}")[1]
+                    pathway_name <- str_replace(pathway_info, " \\[PATH:ko[0-9]{5}\\]", "") %>% str_replace("[0-9]{5} ", "")
+                    pathway2name <- rbind(pathway2name, tibble(Pathway = pathway_id, Name = pathway_name))
+                    
+                    kos_info <- kegg[["children"]][["children"]][[a]][["children"]][[b]][["children"]][[c]][["name"]]
+                    
+                    kos <- str_match(kos_info, "K[0-9]*")[,1]
+                    
+                    ko2pathway <- rbind(ko2pathway, tibble(Ko = kos, Pathway = rep(pathway_id, length(kos))))
+                }
+            }
+        }
+        
+        save(pathway2name, ko2pathway, file = "kegg_info.RData")
+    }
+    
+    update_kegg(json = "ko00001.json")
+    
+}
+
+
+
+########## KEGG #############
 
 library(purrr)
 library(tidyverse)
@@ -334,7 +406,6 @@ pathway2gene <- AnnotationDbi::select(org.GE.eg.db,
     na.omit() %>%
     dplyr::select(Pathway, GID)
 
-		
 load("kegg_info.RData")
 
 ekp <- enricher(list, 
@@ -354,3 +425,7 @@ ekp_results <- as.data.frame(ekp)
   dotplot(ekp)
   
   emapplot(ekp)
+
+
+
+
